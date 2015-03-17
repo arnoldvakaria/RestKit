@@ -242,10 +242,25 @@ extern NSString * const RKObjectMappingNestingAttributeKeyName;
     
     NSEntityDescription *entity = [entityMapping entity];
     NSManagedObject *managedObject = nil;
-    
+
+    // If we have found the entity identification attributes, try to find an existing instance to update
+    if ([entityIdentifierAttributes count]) {
+        NSSet *objects = [self.managedObjectCache managedObjectsWithEntity:entity
+                                                           attributeValues:entityIdentifierAttributes
+                                                    inManagedObjectContext:self.managedObjectContext];
+        if (entityMapping.identificationPredicate) objects = [objects filteredSetUsingPredicate:entityMapping.identificationPredicate];
+        if ([objects count] > 0) {
+            managedObject = [objects anyObject];
+            if ([objects count] > 1) RKLogWarning(@"Managed object cache returned %ld objects for the identifier configured for the '%@' entity, expected 1.", (long) [objects count], [entity name]);
+        }
+        if (managedObject && [self.managedObjectCache respondsToSelector:@selector(didFetchObject:)]) {
+            [self.managedObjectCache didFetchObject:managedObject];
+        }
+    }
+
     // If we are mapping within a relationship, try to find an existing object without identifying attributes
     // NOTE: We avoid doing the mutable(Array|Set|OrderedSet)ValueForKey if there are identification attributes for performance (see issue GH-1232)
-    if (relationship) {
+    if (managedObject==nil && relationship) {
         NSArray *identificationAttributes = [entityMapping.identificationAttributes valueForKey:@"name"];
         id existingObjectsOfRelationship = identificationAttributes ? [mappingOperation.destinationObject valueForKeyPath:relationship.destinationKeyPath] : RKMutableCollectionValueWithObjectForKeyPath(mappingOperation.destinationObject, relationship.destinationKeyPath);
         if (existingObjectsOfRelationship && !RKObjectIsCollection(existingObjectsOfRelationship)) existingObjectsOfRelationship = @[ existingObjectsOfRelationship ];
@@ -262,21 +277,6 @@ extern NSString * const RKObjectMappingNestingAttributeKeyName;
                 managedObject = existingObject;
                 break;
             }
-        }
-    }
-    
-    // If we have found the entity identification attributes, try to find an existing instance to update
-    if ([entityIdentifierAttributes count]) {
-        NSSet *objects = [self.managedObjectCache managedObjectsWithEntity:entity
-                                                           attributeValues:entityIdentifierAttributes
-                                                    inManagedObjectContext:self.managedObjectContext];
-        if (entityMapping.identificationPredicate) objects = [objects filteredSetUsingPredicate:entityMapping.identificationPredicate];
-        if ([objects count] > 0) {
-            managedObject = [objects anyObject];
-            if ([objects count] > 1) RKLogWarning(@"Managed object cache returned %ld objects for the identifier configured for the '%@' entity, expected 1.", (long) [objects count], [entity name]);
-        }
-        if (managedObject && [self.managedObjectCache respondsToSelector:@selector(didFetchObject:)]) {
-            [self.managedObjectCache didFetchObject:managedObject];
         }
     }
 

@@ -937,6 +937,7 @@ static NSArray *RKInsertInMetadataList(NSArray *list, id metadata1, id metadata2
     id parentSourceObject = [self parentObjectForRelationshipMapping:relationshipMapping];
     RKMappingIndexMetadata *indexMetadata = [RKMappingIndexMetadata new];
     NSArray *subOperationMetadata = RKInsertInMetadataList(self.metadataList, indexMetadata, nil);
+//    [self.dataSource managedObjectCache];
     [value enumerateObjectsUsingBlock:^(id nestedObject, NSUInteger collectionIndex, BOOL *stop) {
         id mappableObject = [self destinationObjectForMappingRepresentation:nestedObject parentRepresentation:parentSourceObject withMapping:relationshipDestinationMapping inRelationship:relationshipMapping];
         if (mappableObject) {
